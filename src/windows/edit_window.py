@@ -145,8 +145,8 @@ class EditWindow(tb.Toplevel):
     def _build_dosbox_tab(self, parent):
         val_core = self.logic.read_dosbox_param(self.conf_path, "cpu", "core") or "auto"
         val_cputype = self.logic.read_dosbox_param(self.conf_path, "cpu", "cputype") or "auto"
-        val_cycles = self.logic.read_dosbox_param(self.conf_path, "cpu", "cycles", "3000") # simplified
-        val_cycles_prot = self.logic.read_dosbox_param(self.conf_path, "cpu", "cycles_protected", "60000") # simplified
+        val_cycles = self.logic.read_dosbox_param(self.conf_path, "cpu", "cycles") or "3000"
+        val_cycles_prot = self.logic.read_dosbox_param(self.conf_path, "cpu", "cycles_protected") or "60000"
 
         val_memsize = self.logic.read_dosbox_param(self.conf_path, "dosbox", "memsize") or "16"
         val_xms = self.logic.read_dosbox_param(self.conf_path, "dos", "xms") or "true"
@@ -163,7 +163,7 @@ class EditWindow(tb.Toplevel):
         val_winres = self.logic.read_dosbox_param(self.conf_path, "sdl", "windowresolution") or "default"
         val_fullres = self.logic.read_dosbox_param(self.conf_path, "sdl", "fullresolution") or "desktop"
         val_glshader = self.logic.read_dosbox_param(self.conf_path, "render", "glshader") or "none"
-        val_intscale = self.logic.read_dosbox_param(self.conf_path, "render", "integer_scaling", "false").lower() == "true"
+        val_intscale = (self.logic.read_dosbox_param(self.conf_path, "render", "integer_scaling") or "false").lower() == "true"
         
         parent.columnconfigure(0, weight=1)
         f_cpu = tb.Labelframe(parent, text="CPU Settings", bootstyle="primary")
