@@ -7,6 +7,7 @@ import json
 import threading
 import time
 import datetime
+import uuid
 import logging
 
 # Optional Pillow import (single safe place)
@@ -360,22 +361,19 @@ class GameLogic:
         return sorted(images)
 
     def get_next_screenshot_name(self, game_name):
+        """Generate a collision-resistant screenshot filename using timestamp + microseconds,
+        fallback to UUID if needed."""
         target_dir = self.get_screens_dir(game_name)
-        try:
-            existing = os.listdir(target_dir)
-        except Exception:
-            existing = []
-        max_idx = -1
-        pattern = re.compile(rf"^{re.escape(game_name)}(\d+)\.png$", re.IGNORECASE)
-        for f in existing:
-            m = pattern.match(f)
-            if m:
-                try:
-                    idx = int(m.group(1))
-                    if idx > max_idx: max_idx = idx
-                except Exception:
-                    pass
-        return f"{game_name}{max_idx + 1:03d}.png"
+        # Try a few times with timestamp
+        for _ in range(5):
+            ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+            name = f"{game_name}_{ts}.png"
+            path = os.path.join(target_dir, name)
+            if not os.path.exists(path):
+                return name
+            time.sleep(0.001)
+        # Fallback to uuid
+        return f"{game_name}_{uuid.uuid4().hex}.png"
 
     def _migrate_legacy_screens(self):
         if not os.path.exists(self.folder_screens): return
