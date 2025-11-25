@@ -28,7 +28,7 @@ class SettingsManager:
         abs_path = os.path.abspath(path)
         abs_base = os.path.abspath(BASE_DIR)
         try:
-            # If different drive on Windows, commonpath may raise or be different.
+            # If different drive on Windows, avoid commonpath exception and just return original
             drive_a = os.path.splitdrive(abs_base)[0].lower()
             drive_b = os.path.splitdrive(abs_path)[0].lower()
             if drive_a and drive_b and drive_a != drive_b:
