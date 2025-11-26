@@ -60,7 +60,6 @@ class GameLogic:
                     installed.add(d + ".zip")
         return sorted(list(zipped | installed)), installed
 
-    # --- MINIMÁLNE ZMENY SÚ LEN V TEJTO METÓDE ---
     def launch_game(self, zip_name, specific_exe=None, force_fullscreen=False, hide_console=False):
         name = os.path.splitext(zip_name)[0]
         folder = os.path.join(self.installed_dir, name)
@@ -68,22 +67,16 @@ class GameLogic:
         
         if not db_exe or not os.path.exists(db_exe): raise Exception(f"DOSBox EXE not found:\n{db_exe}")
         
-        # Vytvoríme základný príkaz
         command_args = [db_exe]
-
-        # Pridáme nové parametre
         if force_fullscreen:
             command_args.append("--fullscreen")
         if hide_console:
-            command_args.append("-noconsole") # Používame -noconsole, ako ste špecifikovali
+            command_args.append("-noconsole")
         
         if specific_exe: 
-            # Pre custom exe voláme komplexnejšiu metódu, ale odovzdáme jej upravené argumenty
             self._launch_custom_mode(folder, specific_exe, command_args, mode="exe", game_name=name)
         else: 
-            # Pre štandardný štart pridáme -conf a spustíme
             def run_std():
-                # Pridanie -conf pre štandardný štart
                 final_command = command_args + ["-conf", "dosbox.conf"]
                 
                 start_time = time.time()
@@ -98,8 +91,6 @@ class GameLogic:
 
             threading.Thread(target=run_std, daemon=True).start()
 
-    # --- ZVYŠOK SÚBORU JE ABSOLÚTNE BEZO ZMENY ---
-
     def load_meta(self, game_name, extension):
         path = os.path.join(self.folder_info, f"{game_name}{extension}")
         if os.path.exists(path):
@@ -107,6 +98,7 @@ class GameLogic:
                 with open(path, 'r', encoding='utf-8') as f: return f.read().strip()
             except: pass
         return ""
+
     def load_extra_config(self, game_name):
         path = os.path.join(self.folder_info, f"{game_name}.extra")
         if os.path.exists(path):
@@ -114,17 +106,21 @@ class GameLogic:
                 with open(path, 'r') as f: return json.load(f)
             except: pass
         return {}
+    
     def save_extra_config(self, game_name, data):
         os.makedirs(self.folder_info, exist_ok=True)
         path = os.path.join(self.folder_info, f"{game_name}.extra")
         try:
             with open(path, 'w') as f: json.dump(data, f)
         except: pass
+    
     def load_rating(self, game_name):
         val = self.load_meta(game_name, ".rating")
         return int(val) if val.isdigit() else 0
+
     def is_favorite(self, game_name):
         return os.path.exists(os.path.join(self.folder_info, f"{game_name}.fav"))
+
     def toggle_favorite(self, game_name):
         os.makedirs(self.folder_info, exist_ok=True)
         path = os.path.join(self.folder_info, f"{game_name}.fav")
@@ -134,12 +130,14 @@ class GameLogic:
         else:
             with open(path, 'w') as f: f.write("1")
             return True
+
     def save_meta(self, game_name, extension, value):
         os.makedirs(self.folder_info, exist_ok=True)
         path = os.path.join(self.folder_info, f"{game_name}{extension}")
         try:
             with open(path, 'w', encoding='utf-8') as f: f.write(str(value))
         except: pass
+
     def load_exe_map(self, game_name):
         path = os.path.join(self.folder_info, f"{game_name}.exes.json")
         data = {}
@@ -152,12 +150,14 @@ class GameLogic:
                         else: data[k] = v
             except: pass
         return data
+
     def save_exe_map(self, game_name, mapping):
         os.makedirs(self.folder_info, exist_ok=True)
         path = os.path.join(self.folder_info, f"{game_name}.exes.json")
         try:
             with open(path, 'w') as f: json.dump(mapping, f, indent=4)
         except: pass
+
     def scan_game_executables(self, zip_name):
         game_folder = self.find_game_folder(zip_name)
         exes = []
@@ -170,6 +170,7 @@ class GameLogic:
                     rel_path = os.path.relpath(full_path, game_folder)
                     exes.append(rel_path)
         return sorted(exes)
+    
     def get_mounted_isos(self, game_name):
         game_folder = os.path.join(self.installed_dir, game_name)
         cd_folder = os.path.join(game_folder, "cd")
@@ -178,16 +179,21 @@ class GameLogic:
             valid_exts = ('.cue', '.iso', '.img', '.ccd', '.mdf')
             isos = [f for f in sorted(os.listdir(cd_folder)) if f.lower().endswith(valid_exts)]
         return isos
+
     def backup_game_saves(self, zip_name):
         game_name = os.path.splitext(zip_name)[0]
         game_folder = self.find_game_folder(zip_name)
         if not os.path.exists(game_folder): return False, "Game not installed"
+
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         backup_subdir = os.path.join(self.folder_backups, game_name)
         os.makedirs(backup_subdir, exist_ok=True)
+        
         backup_zip_path = os.path.join(backup_subdir, f"save_backup_{timestamp}.zip")
+        
         save_extensions = ('.sav', '.gam', '.dat', '.cfg', '.hi', '.scr', '.srm')
         files_to_backup = []
+        
         for root, _, files in os.walk(game_folder):
             for f in files:
                 lower = f.lower()
@@ -195,8 +201,10 @@ class GameLogic:
                     full_path = os.path.join(root, f)
                     rel_path = os.path.relpath(full_path, game_folder)
                     files_to_backup.append((full_path, rel_path))
+        
         if not files_to_backup:
             return False, "No save files found (tried .sav, .gam, .dat...)"
+            
         try:
             with zipfile.ZipFile(backup_zip_path, 'w') as z:
                 for full, rel in files_to_backup:
@@ -204,6 +212,7 @@ class GameLogic:
             return True, f"Backed up {len(files_to_backup)} files to:\n{os.path.basename(backup_zip_path)}"
         except Exception as e:
             return False, str(e)
+
     def read_dosbox_param(self, conf_path, section, key):
         if not os.path.exists(conf_path): return ""
         try:
@@ -220,6 +229,7 @@ class GameLogic:
                         if k.strip().lower() == key.lower(): return v.strip()
         except: pass
         return ""
+
     def detect_protected_mode(self, game_name):
         zip_input = game_name + ".zip" if not game_name.endswith(".zip") else game_name
         game_folder = self.find_game_folder(zip_input)
@@ -229,9 +239,11 @@ class GameLogic:
             for f in files:
                 if f.lower() in target_files: return True
         return False
+
     def write_game_config(self, game_name, config_data):
         game_folder = os.path.join(self.installed_dir, game_name)
         conf_path = os.path.join(game_folder, "dosbox.conf")
+        
         legacy_autoexec = []
         if os.path.exists(conf_path):
             try:
@@ -243,30 +255,37 @@ class GameLogic:
                         if "# --- LAUNCHER GENERATED" in line: in_backup = False; continue
                         if in_backup: legacy_autoexec.append(line)
             except: pass
+
         is_protected = self.detect_protected_mode(game_name)
         content = []
+        
         for section in ['sdl', 'render', 'dosbox', 'dos', 'sblaster', 'gus', 'speaker', 'midi', 'mixer']:
             if section in config_data:
                 content.append(f"[{section}]")
                 for k, v in config_data.get(section, {}).items():
                      content.append(f"{k}={v}")
                 content.append("")
+
         content.append("[cpu]")
         content.append(f"core={config_data['cpu']['core']}")
         content.append(f"cputype={config_data['cpu']['cputype']}")
+        
         if is_protected:
             val = config_data['cpu'].get('cycles_protected', '60000')
-            content.append(f"cycles={val}") # Correction: DOSBox-X uses 'cycles', not 'cpu_cycles_protected'
+            content.append(f"cycles={val}")
         else:
             val = config_data['cpu'].get('cycles', '3000')
             content.append(f"cycles={val}")
         content.append("")
+        
         content.append("[autoexec]")
         if legacy_autoexec:
             content.append("# --- ORIGINAL CONFIGURATION (BACKUP) ---")
             content.extend([l.strip() for l in legacy_autoexec])
+        
         content.append("# --- LAUNCHER GENERATED CONFIG START ---")
         content.append("@echo off")
+        
         drives_c = os.path.join(game_folder, "drives", "c")
         mount_cmd = 'mount C "."'
         is_standardized = False
@@ -274,6 +293,7 @@ class GameLogic:
             mount_cmd = 'mount C ".\\drives\\c"'
             is_standardized = True
         content.append(mount_cmd)
+        
         cd_folder = os.path.join(game_folder, "cd")
         if os.path.exists(cd_folder):
             valid_exts = ('.cue', '.iso', '.img', '.ccd', '.mdf')
@@ -281,22 +301,28 @@ class GameLogic:
             if images:
                 img_paths = [f'".\\cd\\{img}"' for img in images]
                 content.append(f'imgmount D {" ".join(img_paths)} -t iso')
+        
         content.append("C:")
+        
         exe_map = self.load_exe_map(game_name)
         main_exe_rel = None
         for rel, info in exe_map.items():
             if info.get("role") == ROLE_MAIN:
                 main_exe_rel = rel
                 break
+        
         if not main_exe_rel:
             all_exes = self.scan_game_executables(game_name + ".zip")
             if len(all_exes) == 1: main_exe_rel = all_exes[0]
+
         if main_exe_rel:
             path_parts = main_exe_rel.replace("\\", "/").split("/")
             if is_standardized and len(path_parts) > 2 and path_parts[0].lower() == "drives" and path_parts[1].lower() == "c":
                 path_parts = path_parts[2:]
+            
             if len(path_parts) > 1:
                 content.append(f"cd {'\\'.join(path_parts[:-1])}")
+            
             run_cmd = path_parts[-1]
             extra = config_data.get('extra', {})
             if extra.get('loadfix', False):
@@ -304,14 +330,18 @@ class GameLogic:
                 if size == '0': content.append("loadfix")
                 else: content.append(f"loadfix -{size}")
             if extra.get('loadhigh', False): run_cmd = f"lh {run_cmd}"
+            
             content.append(run_cmd)
             content.append("exit")
         else:
             content.append("cls")
             content.append("echo No Main Game configured.")
+            
         content.append("# --- LAUNCHER GENERATED CONFIG END ---")
+
         with open(conf_path, 'w') as f:
             f.write("\n".join(content))
+
     def get_game_images(self, game_name):
         target_dir = self.get_screens_dir(game_name)
         images = []
@@ -320,6 +350,7 @@ class GameLogic:
                 if f.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp')):
                     images.append(os.path.join(target_dir, f))
         return sorted(images)
+
     def get_next_screenshot_name(self, game_name):
         target_dir = self.get_screens_dir(game_name)
         existing = os.listdir(target_dir)
@@ -333,11 +364,15 @@ class GameLogic:
                     if idx > max_idx: max_idx = idx
                 except: pass
         return f"{game_name}{max_idx + 1:03d}.png"
+
     def _migrate_legacy_screens(self):
         if not os.path.exists(self.folder_screens): return
-        game_files, _ = self.get_game_list()
+        try:
+            game_files, _ = self.get_game_list()
+        except: return
         game_names = [os.path.splitext(g)[0] for g in game_files]
         game_names.sort(key=len, reverse=True)
+
         for f in os.listdir(self.folder_screens):
             src_path = os.path.join(self.folder_screens, f)
             if not os.path.isfile(src_path): continue
@@ -360,6 +395,7 @@ class GameLogic:
                         except: pass
                     else: shutil.move(src_path, dst_path)
                 except: pass
+
     def rename_game(self, old_name, new_name):
         if old_name == new_name: return True
         old_zip = os.path.join(self.zipped_dir, old_name + ".zip")
@@ -367,11 +403,13 @@ class GameLogic:
         if os.path.exists(old_zip) and not os.path.exists(new_zip):
             try: os.rename(old_zip, new_zip)
             except: pass
+        
         old_folder = os.path.join(self.installed_dir, old_name)
         new_folder = os.path.join(self.installed_dir, new_name)
         if os.path.exists(old_folder):
             try: os.rename(old_folder, new_folder)
             except: return False
+
         for f in os.listdir(self.folder_info):
             if f.startswith(old_name + "."):
                 ext = f[len(old_name):]
@@ -379,6 +417,7 @@ class GameLogic:
                 dst = os.path.join(self.folder_info, new_name + ext)
                 try: os.rename(src, dst)
                 except: pass
+        
         old_screen_dir = os.path.join(self.folder_screens, old_name)
         new_screen_dir = os.path.join(self.folder_screens, new_name)
         if os.path.exists(old_screen_dir):
@@ -391,6 +430,7 @@ class GameLogic:
                          os.rename(os.path.join(new_screen_dir, img), os.path.join(new_screen_dir, new_img_name))
             except: pass
         return True
+    
     def install_game(self, zip_name):
         target = self.find_game_folder(zip_name)
         zip_path = os.path.join(self.zipped_dir, zip_name)
@@ -398,15 +438,18 @@ class GameLogic:
         try:
             if not os.path.exists(target): os.makedirs(target)
             with zipfile.ZipFile(zip_path, 'r') as z: z.extractall(target)
+            
             items = os.listdir(target)
             if len(items) == 1 and os.path.isdir(os.path.join(target, items[0])):
                 sub = os.path.join(target, items[0])
                 for f in os.listdir(sub):
                     shutil.move(os.path.join(sub, f), os.path.join(target, f))
                 os.rmdir(sub)
+            
             for item in os.listdir(target):
                 if item.lower() == "dosbox" and os.path.isdir(os.path.join(target, item)):
                     shutil.rmtree(os.path.join(target, item), ignore_errors=True)
+            
             default_config = {
                 'sdl': {'output': 'opengl', 'fullscreen': 'false', 'windowresolution': 'default', 'fullresolution': 'desktop'},
                 'render': {'glshader': 'none', 'integer_scaling': 'false'},
@@ -418,10 +461,12 @@ class GameLogic:
                 'speaker': {'pcspeaker': 'impulse', 'tandy': 'auto', 'lpt_dac': 'none'}
             }
             self.write_game_config(os.path.splitext(zip_name)[0], default_config)
+            
             return True
         except Exception as e:
             shutil.rmtree(target, ignore_errors=True)
             raise e
+
     def uninstall_game(self, zip_name):
         path = self.find_game_folder(zip_name)
         if os.path.exists(path):
@@ -431,20 +476,25 @@ class GameLogic:
             if f.startswith(name + "."):
                 try: os.remove(os.path.join(self.folder_info, f))
                 except: pass
+
     def organize_game_structure(self, current_zip_name, new_full_name, dos_name_8char=None):
         old_folder = self.find_game_folder(current_zip_name)
         if not os.path.exists(old_folder): return None
+        
         current_name_no_zip = os.path.splitext(current_zip_name)[0]
         if new_full_name != current_name_no_zip:
             if not self.rename_game(current_name_no_zip, new_full_name):
                 return None
+        
         game_folder = os.path.join(self.installed_dir, new_full_name)
         path_cd = os.path.join(game_folder, "cd")
         path_docs = os.path.join(game_folder, "docs")
         path_drives = os.path.join(game_folder, "drives")
         path_c = os.path.join(path_drives, "c")
+        
         for p in [path_cd, path_docs, path_c]:
             os.makedirs(p, exist_ok=True)
+            
         direct_iso_ext = ('.iso', '.img', '.ccd', '.mdf', '.mds')
         for f in os.listdir(game_folder):
             src = os.path.join(game_folder, f)
@@ -459,10 +509,12 @@ class GameLogic:
                     if candidate.lower() == (base_name + ".bin").lower():
                         src_bin = os.path.join(game_folder, candidate)
                         shutil.move(src_bin, os.path.join(path_cd, candidate))
+        
         excluded = ['cd', 'docs', 'drives', 'dosbox.conf', 'capture', 'screens']
         items_to_move = []
         for f in os.listdir(game_folder):
             if f not in excluded: items_to_move.append(f)
+        
         final_dos_name = dos_name_8char
         if not final_dos_name:
             if len(items_to_move) == 1 and os.path.isdir(os.path.join(game_folder, items_to_move[0])):
@@ -471,6 +523,7 @@ class GameLogic:
                     final_dos_name = candidate_name.upper()
             if not final_dos_name:
                 final_dos_name = re.sub(r'[^a-zA-Z0-9]', '', new_full_name)[:8].upper()
+
         dos_game_dir = os.path.join(path_c, final_dos_name)
         if items_to_move:
             if len(items_to_move) == 1 and os.path.isdir(os.path.join(game_folder, items_to_move[0])):
@@ -487,6 +540,7 @@ class GameLogic:
                     src = os.path.join(game_folder, item)
                     dst = os.path.join(dos_game_dir, item)
                     shutil.move(src, dst)
+        
         default_config = {
                 'sdl': {'output': 'opengl', 'fullscreen': 'false', 'windowresolution': 'default', 'fullresolution': 'desktop'},
                 'render': {'glshader': 'none', 'integer_scaling': 'false'},
@@ -499,12 +553,14 @@ class GameLogic:
         }
         self.write_game_config(new_full_name, default_config)
         return new_full_name + ".zip"
+
     def launch_dosbox_prompt(self, zip_name):
         name = os.path.splitext(zip_name)[0]
         folder = os.path.join(self.installed_dir, name)
         db_exe = self.get_dosbox_exe(name)
         if not db_exe or not os.path.exists(db_exe): raise Exception("DOSBox EXE not configured!")
         self._launch_custom_mode(folder, None, [db_exe], mode="prompt", game_name=name)
+
     def _launch_custom_mode(self, game_folder, target_file, db_command_args, mode="exe", game_name=None):
         def thread_target():
             org_conf = os.path.join(game_folder, "dosbox.conf")
@@ -527,6 +583,7 @@ class GameLogic:
                     if images:
                         img_paths = [f'".\\cd\\{img}"' for img in images]
                         img_cmd = f'imgmount D {" ".join(img_paths)} -t iso'
+
                 lines = []
                 try:
                     with open(bak_conf, 'r') as f:
@@ -534,7 +591,9 @@ class GameLogic:
                             if '[autoexec]' in line.lower(): break
                             lines.append(line)
                 except: pass
+
                 autoexec = ["\n[autoexec]", "@echo off", mount_cmd, img_cmd, "C:"]
+                
                 if mode == "exe" and target_file:
                     dos_path = target_file
                     if os.path.exists(drives_c):
@@ -548,8 +607,9 @@ class GameLogic:
                     autoexec.append("exit")
                 elif mode == "prompt":
                     autoexec.append("cls")
-                    auto.append("echo DOSBox Command Mode")
+                    autoexec.append("echo DOSBox Command Mode")
                     autoexec.append("echo -------------------")
+
                 with open(org_conf, 'w') as f:
                     f.writelines(lines)
                     f.write("\n".join(autoexec))
@@ -562,8 +622,10 @@ class GameLogic:
                     if os.path.exists(fp):
                         try: os.remove(fp)
                         except: pass
+                
                 if game_name:
                     self.import_screenshots_from_capture(game_folder, game_name, start_time)
+
             except Exception as e: print(f"Run Error: {e}")
             finally:
                 if os.path.exists(org_conf): 
@@ -572,10 +634,13 @@ class GameLogic:
                 if os.path.exists(bak_conf):
                     try: os.rename(bak_conf, org_conf)
                     except: pass
+        
         threading.Thread(target=thread_target, daemon=True).start()
+
     def import_screenshots_from_capture(self, game_folder, game_name, start_time):
         paths_to_check = []
         conf_capture = self.settings.get("capture_dir")
+        
         if conf_capture:
             if os.path.isabs(conf_capture):
                 if os.path.exists(conf_capture):
@@ -584,26 +649,32 @@ class GameLogic:
                 local_path = os.path.join(game_folder, conf_capture)
                 if os.path.exists(local_path):
                      paths_to_check.append((local_path, False))
+        
         local_cap = os.path.join(game_folder, "capture")
         if os.path.exists(local_cap) and local_cap not in [p[0] for p in paths_to_check]:
             paths_to_check.append((local_cap, False)) 
         paths_to_check.append((game_folder, True))
+
         target_dir = self.get_screens_dir(game_name)
+        
         for source_dir, check_time in paths_to_check:
             if not os.path.exists(source_dir): continue
             for f in os.listdir(source_dir):
                 if f.lower().endswith(".png"):
                     src_path = os.path.join(source_dir, f)
                     if os.path.dirname(src_path) == target_dir: continue
+
                     if check_time:
                         ctime = os.path.getmtime(src_path)
                         if ctime < start_time: continue
+                     
                     new_name = self.get_next_screenshot_name(game_name)
                     dst_path = os.path.join(target_dir, new_name)
                     try:
                         time.sleep(0.1)
                         shutil.move(src_path, dst_path)
                     except: pass
+
     def open_config_in_notepad(self, zip_name):
         name = os.path.splitext(zip_name)[0]
         conf_path = os.path.join(self.installed_dir, name, "dosbox.conf")
